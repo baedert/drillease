@@ -11,12 +11,23 @@ enum LOGFILE_NAME = "drillease_log.txt";
 
 void main(string[] args)
 {
-	if (args.length != 3) {
+	if (args.length < 3) {
 		writeln ("Usage: ", args[0], " [current version] [release version]");
 		return;
 	}
 	string current_version = args[1];
 	string release_version = args[2];
+	string[] newPoFiles;
+
+	bool checkTranslations = true;
+	if (args.length > 3) {
+		if (args[3] == "--skip-translations") {
+			checkTranslations = false;
+		} else {
+			writeln("Unknown parameter ", args[3]);
+			return;
+		}
+	}
 
 	writeln ("Releasing ", release_version, " from ", current_version, " ...");
 
@@ -27,19 +38,19 @@ void main(string[] args)
 	}
 	scope(exit){ stderr.close(); }
 
-	// Step 1: Update translations
-	writeln ("Updating translations...");
-	auto make_update_translations = spawn(["make", "update-translations"]);
-	if (wait(make_update_translations) != 0) {
-		writeln("make update-translations failed. See log file ", LOGFILE_NAME);
-		return;
-	}
+	if (checkTranslations) {
+		// Step 1: Update translations
+		writeln ("Updating translations...");
+		auto make_update_translations = spawn(["make", "update-translations"]);
+		if (wait(make_update_translations) != 0) {
+			writeln("make update-translations failed. See log file ", LOGFILE_NAME);
+			return;
+		}
 
-	// Step 2: Fix up whatever transifex got wrong.
-	//         This includes removing trailing whitespace, collapsing mentions of the same translator into one,
-	//         fixing wrong order of format specifiers.
-	writeln ("Fixing translations...");
-	{
+		// Step 2: Fix up whatever transifex got wrong.
+		//         This includes removing trailing whitespace, collapsing mentions of the same translator into one,
+		//         fixing wrong order of format specifiers.
+		writeln ("Fixing translations...");
 		auto po_files = dirEntries("po/", SpanMode.breadth).filter!(f => f.name.endsWith(".po"));
 		foreach (file; po_files) {
 			writeln ("    Fixing ", file, " ...");
@@ -146,11 +157,8 @@ void main(string[] args)
 
 			std.file.write(file, file_buffer);
 		}
-	}
 
-	string[] newPoFiles;
-	writeln("Updating LINGUAS...");
-	{
+		writeln("Updating LINGUAS...");
 		// Fetching translations might have pulled new files in, so add them to the LINGUAS
 		// file and later to the translations commit
 		string linguasText = readText("po/LINGUAS");
@@ -235,27 +243,29 @@ void main(string[] args)
 		return;
 	}
 
-	writeln ("Committing po changes...");
-	if (newPoFiles.length > 0) {
-		foreach (poFile; newPoFiles) {
-			auto pid = spawnProcess(["git", "add", poFile]);
+	if (checkTranslations) {
+		writeln ("Committing po changes...");
+		if (newPoFiles.length > 0) {
+			foreach (poFile; newPoFiles) {
+				auto pid = spawnProcess(["git", "add", poFile]);
+				if (wait(pid) != 0) {
+					writeln("Failed to git add ", poFile, ". See ", LOGFILE_NAME);
+					return;
+				}
+			}
+
+			auto pid = spawnProcess(["git", "add", "po/LINGUAS"]);
 			if (wait(pid) != 0) {
-				writeln("Failed to git add ", poFile, ". See ", LOGFILE_NAME);
+				writeln("Failed to git add LINGUAS file. See ", LOGFILE_NAME);
 				return;
 			}
-		}
 
-		auto pid = spawnProcess(["git", "add", "po/LINGUAS"]);
-		if (wait(pid) != 0) {
-			writeln("Failed to git add LINGUAS file. See ", LOGFILE_NAME);
+		}
+		auto po_commit = spawn(["git", "commit", "po/", "-m", "Update translations"]);
+		if (wait(po_commit) != 0) {
+			writeln ("Commiting po changes failed. See ", LOGFILE_NAME);
 			return;
 		}
-
-	}
-	auto po_commit = spawn(["git", "commit", "po/", "-m", "Update translations"]);
-	if (wait(po_commit) != 0) {
-		writeln ("Commiting po changes failed. See ", LOGFILE_NAME);
-		return;
 	}
 
 	writeln ("Committing release...");
