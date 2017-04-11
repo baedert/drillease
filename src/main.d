@@ -150,7 +150,25 @@ void main(string[] args)
 					} else {
 					  next();
 					}
-				} else {
+				} else if (line.startsWith("#. TRANSLATORS: Do NOT translate")) {
+					// Check all translated versions and make them match the original one,
+					// since this should've never been translated in the first place.
+
+					// Skip to the msgid line
+					while (!line.startsWith("msgid ")) {
+						next();
+					}
+
+					assert(line.startsWith("msgid \""));
+
+					auto original = line["msgid \"".length..$ - 1]; // Strip of 'msgid "' at the beginning and quote at the end
+					next();
+					assert(line.startsWith("msgstr \""));
+					// We just always replace this line, no matter what the actual translation was. Simpler.
+					line = "mgsstr \"" ~ original ~ "\"";
+					next();
+				}
+				else {
 				  next();
 				}
 			}
