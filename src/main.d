@@ -161,11 +161,13 @@ void main(string[] args)
 
 					assert(line.startsWith("msgid \""));
 
-					auto original = line["msgid \"".length..$ - 1]; // Strip of 'msgid "' at the beginning and quote at the end
+					// Strip off 'msgid "' at the beginning and quote at the end
+					auto original = cast(char[])line["msgid \"".length..$ - 1].idup;
+					//writeln("original icon name: '", original, "'");
 					next();
 					assert(line.startsWith("msgstr \""));
 					// We just always replace this line, no matter what the actual translation was. Simpler.
-					line = "mgsstr \"" ~ original ~ "\"";
+					line = "msgstr \"" ~ original ~ "\"";
 					next();
 				}
 				else {
@@ -191,7 +193,7 @@ void main(string[] args)
 			if (line.endsWith(".po")) {
 				writeln("New po file: ", line);
 				newPoFiles ~= line.idup;
-				linguasText ~= line ~ "\n";
+				linguasText ~= "\n" ~ line;
 			}
 		}
 
