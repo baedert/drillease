@@ -255,6 +255,21 @@ void main(string[] args)
 		std.file.write(readme_file.name, file_buffer);
 	}
 
+	writeln("Updating meson.build...")
+	{
+		File readme_file = File("meson.build");
+		string file_buffer;
+
+		foreach (line; readme_file.byLine) {
+			if (line.canFind("version:"))
+				file_buffer ~= line.idup.replace(current_version, release_version) ~ "\n";
+			else
+				file_buffer ~= line.idup ~ "\n";
+		}
+		std.file.write(readme_file.name, file_buffer);
+	}
+
+
 
 	writeln ("Running make distcheck...");
 	auto distcheck = spawn(["make", "distcheck"]);
