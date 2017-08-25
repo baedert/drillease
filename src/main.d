@@ -255,7 +255,7 @@ void main(string[] args)
 		std.file.write(readme_file.name, file_buffer);
 	}
 
-	writeln("Updating meson.build...")
+	writeln("Updating meson.build...");
 	{
 		File readme_file = File("meson.build");
 		string file_buffer;
@@ -304,7 +304,7 @@ void main(string[] args)
 	}
 
 	writeln ("Committing release...");
-	auto release_commit = spawn(["git", "commit", "README.md", "configure.ac", "ui/about-dialog.ui",
+	auto release_commit = spawn(["git", "commit", "README.md", "configure.ac", "ui/about-dialog.ui", "meson.build",
 	                             "-m", "Release " ~ release_version]);
 	if (wait(release_commit) != 0) {
 		writeln ("Commiting release changes failed. See ", LOGFILE_NAME);
